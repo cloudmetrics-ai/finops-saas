@@ -1,0 +1,9 @@
+{
+  "name": "finops-saas",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "audit-frontend": "cd frontend && npm audit",
+    "build-frontend": "cd frontend && npm run build"
+  }
+}
