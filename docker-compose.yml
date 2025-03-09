@@ -1,0 +1,97 @@
+version: '3.8'
+services:
+  # Keycloak for Authentication
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: finops_keycloak
+    environment:
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin
+      DB_VENDOR: h2
+    ports:
+      - '8080:8080'
+    # For persistent storage, mount a volume if desired
+    # volumes:
+    #   - keycloak_data:/opt/jboss/keycloak/standalone/data
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: finops_postgres
+    environment:
+      POSTGRES_DB: finops_db
+      POSTGRES_USER: finops_user
+      POSTGRES_PASSWORD: finops_pass
+    ports:
+      - '5432:5432'
+    # volumes:
+    #   - postgres_data:/var/lib/postgresql/data
+
+  # Redis (for caching / queue)
+  redis:
+    image: redis:latest
+    container_name: finops_redis
+    ports:
+      - '6379:6379'
+
+  # MinIO (S3-compatible storage)
+  minio:
+    image: minio/minio:latest
+    container_name: finops_minio
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server /data
+    ports:
+      - "9000:9000"
+    # volumes:
+    #   - minio_data:/data
+
+  # Backend (FastAPI)
+  backend:
+    build: ./backend
+    container_name: finops_backend
+    ports:
+      - '8000:8000'
+    depends_on:
+      - postgres
+      - redis
+      - keycloak
+    environment:
+      DATABASE_URL: postgresql://finops_user:finops_pass@postgres:5432/finops_db
+      REDIS_URL: redis://redis:6379
+      KEYCLOAK_URL: http://keycloak:8080  # Example reference to Keycloak
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+
+  # Worker (background ingestion, tasks)
+  worker:
+    build: ./worker
+    container_name: finops_worker
+    depends_on:
+      - backend
+      - redis
+    environment:
+      DATABASE_URL: postgresql://finops_user:finops_pass@postgres:5432/finops_db
+      REDIS_URL: redis://redis:6379
+      KEYCLOAK_URL: http://keycloak:8080
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+    # no ports since it's just a background worker
+
+  # Frontend (React)
+  frontend:
+    build: ./frontend
+    container_name: finops_frontend
+    ports:
+      - '3000:80'
+    depends_on:
+      - backend
+
+# Named volumes if you prefer persistent storage (uncomment above)
+# volumes:
+#   keycloak_data:
+#   postgres_data:
+#   minio_data:

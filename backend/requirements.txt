@@ -1,0 +1,6 @@
+fastapi==0.92.0
+uvicorn==0.20.0
+psycopg2==2.9.6
+redis==4.5.3
+minio==7.1.6
+python-keycloak==2.5.0  # Optional, for direct Keycloak interaction
